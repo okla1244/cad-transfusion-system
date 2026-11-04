@@ -525,6 +525,34 @@
                 <span id="btnConfirmNotifiedText">點擊確認「已完成通知」</span>
               </button>
             </div>
+
+            <!-- 本機備份自動儲存資料夾（雙重保障） -->
+            <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="space-y-1">
+                <div class="flex items-center space-x-2">
+                  <span class="font-bold text-white text-sm flex items-center space-x-1.5">
+                    <i class="fa-solid fa-folder-open text-amber-400"></i>
+                    <span>本機資料夾自動儲存（雙重保障）</span>
+                  </span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">本機備份</span>
+                </div>
+                <div class="text-xs text-slate-400 flex items-center space-x-1.5">
+                  <span>預設儲存位置：</span>
+                  <span id="lblLocalFolderName" class="font-mono text-sky-400 font-semibold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">未設定（預設為瀏覽器下載）</span>
+                </div>
+              </div>
+
+              <div class="flex items-center space-x-3">
+                <label class="flex items-center space-x-2 text-xs text-slate-300 cursor-pointer select-none">
+                  <input type="checkbox" id="chkAutoSaveLocal" checked onchange="toggleAutoSaveLocal(this.checked)" class="w-4 h-4 rounded text-sky-600 focus:ring-0 bg-slate-900 border-slate-700">
+                  <span>結案時自動儲存檔案</span>
+                </label>
+                <button type="button" onclick="selectLocalBackupFolder()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 text-xs text-slate-200 rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+                  <i class="fa-regular fa-folder-closed text-amber-400"></i>
+                  <span>選擇預設資料夾</span>
+                </button>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -775,6 +803,188 @@
     }
 
     /* ========================================================
+       本機資料夾自動儲存與 IndexedDB 持久化管理 (雙重保障)
+       ======================================================== */
+    let savedDirHandle = null;
+    const IDB_NAME = 'CAD_Storage_DB';
+    const IDB_STORE = 'handles';
+
+    function getIDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveDirectoryHandle(handle) {
+      try {
+        const db = await getIDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).put(handle, 'backup_dir');
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch (err) {
+        console.warn('儲存 DirectoryHandle 失敗:', err);
+      }
+    }
+
+    async function getDirectoryHandle() {
+      try {
+        const db = await getIDB();
+        return new Promise((resolve) => {
+          const tx = db.transaction(IDB_STORE, 'readonly');
+          const req = tx.objectStore(IDB_STORE).get('backup_dir');
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function initLocalFolder() {
+      // 讀取是否自動儲存開關 (預設為開啟 true)
+      const autoSave = localStorage.getItem('cad_auto_save_local');
+      const chk = document.getElementById('chkAutoSaveLocal');
+      if (chk) {
+        chk.checked = (autoSave !== 'false');
+      }
+
+      // 讀取上次記憶的資料夾名稱
+      const savedName = localStorage.getItem('cad_local_folder_name');
+      if (savedName) {
+        updateLocalFolderUI(savedName);
+      }
+
+      // 嘗試從 IndexedDB 恢復 DirectoryHandle
+      try {
+        savedDirHandle = await getDirectoryHandle();
+        if (savedDirHandle) {
+          updateLocalFolderUI(savedDirHandle.name);
+        }
+      } catch (e) {
+        console.warn('恢復本地資料夾 Handle 失敗:', e);
+      }
+    }
+
+    function updateLocalFolderUI(folderName) {
+      const lbl = document.getElementById('lblLocalFolderName');
+      if (lbl) {
+        if (folderName) {
+          lbl.textContent = `📁 ${folderName}`;
+          lbl.className = 'font-mono text-emerald-400 font-bold bg-slate-900 px-2 py-0.5 rounded border border-emerald-900/60';
+        } else {
+          lbl.textContent = '未設定（預設為瀏覽器下載）';
+          lbl.className = 'font-mono text-sky-400 font-semibold bg-slate-900 px-2 py-0.5 rounded border border-slate-800';
+        }
+      }
+    }
+
+    async function selectLocalBackupFolder() {
+      if (!('showDirectoryPicker' in window)) {
+        alert('提示：目前瀏覽器安全性限制無法直接選取資料夾，結案時系統將自動為您以「下載」檔案的方式儲存至本機做雙重備份。');
+        return;
+      }
+      try {
+        const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        savedDirHandle = dirHandle;
+        await saveDirectoryHandle(dirHandle);
+        localStorage.setItem('cad_local_folder_name', dirHandle.name);
+        updateLocalFolderUI(dirHandle.name);
+        showToast(`已成功預設儲存位置：「${dirHandle.name}」`, 'success');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('選擇資料夾失敗:', err);
+          showToast('選取資料夾失敗或取消', 'warn');
+        }
+      }
+    }
+
+    function toggleAutoSaveLocal(isChecked) {
+      localStorage.setItem('cad_auto_save_local', isChecked ? 'true' : 'false');
+      showToast(isChecked ? '已開啟結案時自動儲存本機檔案' : '已關閉本機自動儲存', 'info');
+    }
+
+    function generateCaseReportText(c) {
+      return `============================================================
+【新竹縣消防局救災救護指揮中心 - 院前輸血調度案件紀錄表】
+============================================================
+案號：${c.caseId || '-'}
+建立時間：${c.startTime || '-'}
+結案時間：${c.closedTime || '-'}
+值班派遣員：${c.dispatcher || '-'}
+出勤單位：${c.dispatchUnit || '-'}
+案發地點：${c.location || '-'}
+現場 TP 狀況：${c.hasTP ? '現場有 TP' : '現場無 TP (加派單位: ' + (c.backupTPUnit || '無') + ')'}
+備血責任醫院：${c.bloodBankHospital || '-'} (電話: ${c.bloodBankPhone || '-'})
+指定領血分隊：${c.pickupSquad || '-'} 分隊 (${c.pickupCarCode || '-'})
+受血責任醫院：${c.destHospital || '-'} (電話: ${c.destHospitalPhone || '-'})
+管制狀態：${c.status || '已結案'}
+本機儲存時間：${new Date().toLocaleString()}
+
+------------------------------------------------------------
+【派遣管制時間歷程 (Timeline)】
+------------------------------------------------------------
+${(c.logs || []).join('\n')}
+
+------------------------------------------------------------
+【原始結構化資料 (JSON)】
+------------------------------------------------------------
+${JSON.stringify(c, null, 2)}
+============================================================
+`;
+    }
+
+    function triggerFileDownload(filename, text) {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    async function saveCaseToLocalFolder(c) {
+      const chk = document.getElementById('chkAutoSaveLocal');
+      const isAuto = chk ? chk.checked : (localStorage.getItem('cad_auto_save_local') !== 'false');
+      if (!isAuto) return;
+
+      const filename = `${c.caseId}_輸血調度紀錄.txt`;
+      const fileContent = generateCaseReportText(c);
+
+      // 嘗試寫入已選定的本機資料夾
+      if (savedDirHandle) {
+        try {
+          let permission = await savedDirHandle.queryPermission({ mode: 'readwrite' });
+          if (permission !== 'granted') {
+            permission = await savedDirHandle.requestPermission({ mode: 'readwrite' });
+          }
+          if (permission === 'granted') {
+            const fileHandle = await savedDirHandle.getFileHandle(filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(fileContent);
+            await writable.close();
+            showToast(`已自動存入本機「${savedDirHandle.name}」資料夾！`, 'success');
+            return;
+          }
+        } catch (err) {
+          console.warn('寫入本機預設資料夾遭遇問題，改以自動下載方式儲存:', err);
+        }
+      }
+
+      // 若未指定資料夾或無存取權限，以瀏覽器預設下載自動儲存至本機
+      triggerFileDownload(filename, fileContent);
+      showToast('案件資料已自動儲存備份至本機！', 'info');
+    }
+
+    /* ========================================================
        初始化
        ======================================================== */
     window.addEventListener('DOMContentLoaded', () => {
@@ -786,6 +996,7 @@
       updateDashboardStats();
       fetchCasesFromGoogle();
       fetchHospitalPhonesFromGoogle();
+      initLocalFolder();
     });
 
     function startClock() {
@@ -1334,6 +1545,9 @@
 
       // 同步至 Google 雲端試算表與硬碟
       syncCaseToGoogle({ ...activeCase });
+
+      // 自動儲存至本機資料夾（雙重保障）
+      saveCaseToLocalFolder({ ...activeCase });
 
       closeWorkflowModal();
       renderCaseHistory();
