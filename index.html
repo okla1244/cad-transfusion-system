@@ -662,9 +662,14 @@
       if (status === 'syncing') {
         badge.className = 'hidden sm:flex items-center space-x-2 bg-amber-950/60 px-3 py-1.5 rounded-lg border border-amber-700/60 text-amber-300 text-xs font-medium';
         badge.innerHTML = '<i class="fa-solid fa-rotate fa-spin text-amber-400"></i><span>雲端同步中...</span>';
+      } else if (status === 'auth_error') {
+        badge.className = 'hidden sm:flex items-center space-x-2 bg-red-950/80 px-3 py-1.5 rounded-lg border border-red-600 text-red-300 text-xs font-bold cursor-pointer';
+        badge.title = '點擊查看說明：請至 Google Apps Script 將「誰可以存取」設為「所有人 (Anyone)」';
+        badge.onclick = () => alert('【Google 權限錯誤】\n目前 Google 拒絕了外部寫入請求（導向登入頁面）。\n\n解決方法：\n請前往 Google 試算表的「擴充功能 > Apps Script」，點右上角「部署 > 管理部署作業」，將「誰可以存取 (Who has access)」修改為「所有人 (Anyone)」後重新部署！');
+        badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-400 animate-bounce"></i><span>Google權限需設為「所有人」</span>';
       } else if (status === 'error') {
-        badge.className = 'hidden sm:flex items-center space-x-2 bg-red-950/60 px-3 py-1.5 rounded-lg border border-red-700/60 text-red-300 text-xs font-medium';
-        badge.innerHTML = '<i class="fa-solid fa-cloud-arrow-down text-red-400"></i><span>本地快取運作中</span>';
+        badge.className = 'hidden sm:flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs font-medium';
+        badge.innerHTML = '<i class="fa-solid fa-cloud-arrow-down text-slate-400"></i><span>本地快取運作中</span>';
       } else {
         badge.className = 'hidden sm:flex items-center space-x-2 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-700/60 text-emerald-300 text-xs font-medium';
         badge.innerHTML = '<i class="fa-solid fa-cloud text-emerald-400"></i><span>Google 雲端已連線</span>';
@@ -681,10 +686,36 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'saveCase', caseData: caseData })
         });
-        updateCloudStatus('synced');
+        // 驗證後台是否真的可讀取
+        setTimeout(async () => {
+          const isOk = await verifyGoogleConnection();
+          if (isOk) {
+            updateCloudStatus('synced');
+            showToast('案件已成功同步至 Google 試算表！', 'success');
+          } else {
+            updateCloudStatus('auth_error');
+            showToast('⚠️ Google 權限受限！資料未能寫入試算表，已留存本機', 'error');
+          }
+        }, 1500);
       } catch (err) {
         console.error('Google 雲端同步失敗:', err);
-        updateCloudStatus('error');
+        updateCloudStatus('auth_error');
+        showToast('⚠️ Google 同步失敗，資料已安全留存本機快取', 'warn');
+      }
+    }
+
+    async function verifyGoogleConnection() {
+      if (!GAS_API_URL) return false;
+      try {
+        const res = await fetch(`${GAS_API_URL}?action=getCases`);
+        if (res.redirected && res.url.includes('accounts.google.com')) {
+          return false;
+        }
+        const text = await res.text();
+        const json = JSON.parse(text);
+        return json.status === 'success';
+      } catch (e) {
+        return false;
       }
     }
 
@@ -707,7 +738,12 @@
       try {
         updateCloudStatus('syncing');
         const res = await fetch(`${GAS_API_URL}?action=getCases`);
-        const json = await res.json();
+        if (res.redirected && res.url.includes('accounts.google.com')) {
+          updateCloudStatus('auth_error');
+          return;
+        }
+        const text = await res.text();
+        const json = JSON.parse(text);
         if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
           caseHistory = json.data;
           localStorage.setItem('cad_transfusion_records', JSON.stringify(caseHistory));
@@ -719,7 +755,7 @@
         }
       } catch (err) {
         console.warn('從 Google 讀取資料失敗，使用本地 LocalStorage 備份:', err);
-        updateCloudStatus('synced');
+        updateCloudStatus('auth_error');
       }
     }
 
