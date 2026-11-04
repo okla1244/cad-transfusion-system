@@ -68,7 +68,11 @@
       </div>
 
       <!-- 右側系統狀態與時間 -->
-      <div class="flex items-center space-x-4 lg:space-x-6 text-sm">
+      <div class="flex items-center space-x-3 lg:space-x-4 text-sm">
+        <div id="cloudStatusBadge" class="hidden sm:flex items-center space-x-2 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-700/60 text-emerald-300 text-xs font-medium">
+          <i class="fa-solid fa-cloud text-emerald-400"></i>
+          <span>Google 雲端已連線</span>
+        </div>
         <div class="hidden sm:flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
           <span class="relative flex h-2.5 w-2.5">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -649,6 +653,91 @@
     // 儲存各醫院的電話紀錄（支援 LocalStorage 持久化儲存與帶入）
     let hospitalPhoneMap = {};
 
+    // Google Apps Script 後端 API 網址 (儲存案件紀錄與 Google Drive / Sheets 連動)
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwTCG4nRL5po2hs7ANLNtQ7qosl4pq5DEX30jlTTtDXZNjBZhEQw8o0g3fPo3A1jFfe/exec";
+
+    function updateCloudStatus(status) {
+      const badge = document.getElementById('cloudStatusBadge');
+      if (!badge) return;
+      if (status === 'syncing') {
+        badge.className = 'hidden sm:flex items-center space-x-2 bg-amber-950/60 px-3 py-1.5 rounded-lg border border-amber-700/60 text-amber-300 text-xs font-medium';
+        badge.innerHTML = '<i class="fa-solid fa-rotate fa-spin text-amber-400"></i><span>雲端同步中...</span>';
+      } else if (status === 'error') {
+        badge.className = 'hidden sm:flex items-center space-x-2 bg-red-950/60 px-3 py-1.5 rounded-lg border border-red-700/60 text-red-300 text-xs font-medium';
+        badge.innerHTML = '<i class="fa-solid fa-cloud-arrow-down text-red-400"></i><span>本地快取運作中</span>';
+      } else {
+        badge.className = 'hidden sm:flex items-center space-x-2 bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-700/60 text-emerald-300 text-xs font-medium';
+        badge.innerHTML = '<i class="fa-solid fa-cloud text-emerald-400"></i><span>Google 雲端已連線</span>';
+      }
+    }
+
+    async function syncCaseToGoogle(caseData) {
+      if (!GAS_API_URL) return;
+      try {
+        updateCloudStatus('syncing');
+        await fetch(GAS_API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'saveCase', caseData: caseData })
+        });
+        updateCloudStatus('synced');
+      } catch (err) {
+        console.error('Google 雲端同步失敗:', err);
+        updateCloudStatus('error');
+      }
+    }
+
+    async function syncHospitalPhonesToGoogle() {
+      if (!GAS_API_URL) return;
+      try {
+        await fetch(GAS_API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'saveHospitalPhones', phoneMap: hospitalPhoneMap })
+        });
+      } catch (err) {
+        console.error('醫院電話同步至 Google 失敗:', err);
+      }
+    }
+
+    async function fetchCasesFromGoogle() {
+      if (!GAS_API_URL) return;
+      try {
+        updateCloudStatus('syncing');
+        const res = await fetch(`${GAS_API_URL}?action=getCases`);
+        const json = await res.json();
+        if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
+          caseHistory = json.data;
+          localStorage.setItem('cad_transfusion_records', JSON.stringify(caseHistory));
+          renderCaseHistory();
+          updateDashboardStats();
+          updateCloudStatus('synced');
+        } else {
+          updateCloudStatus('synced');
+        }
+      } catch (err) {
+        console.warn('從 Google 讀取資料失敗，使用本地 LocalStorage 備份:', err);
+        updateCloudStatus('synced');
+      }
+    }
+
+    async function fetchHospitalPhonesFromGoogle() {
+      if (!GAS_API_URL) return;
+      try {
+        const res = await fetch(`${GAS_API_URL}?action=getHospitalPhones`);
+        const json = await res.json();
+        if (json.status === 'success' && json.data && Object.keys(json.data).length > 0) {
+          hospitalPhoneMap = Object.assign(hospitalPhoneMap, json.data);
+          localStorage.setItem('cad_hospital_phones', JSON.stringify(hospitalPhoneMap));
+          renderHospitalGrids();
+        }
+      } catch (err) {
+        console.warn('從 Google 讀取電話表失敗，使用本地快取:', err);
+      }
+    }
+
     /* ========================================================
        初始化
        ======================================================== */
@@ -659,6 +748,8 @@
       renderPickupSquadGrid();
       loadStoredCases();
       updateDashboardStats();
+      fetchCasesFromGoogle();
+      fetchHospitalPhonesFromGoogle();
     });
 
     function startClock() {
@@ -699,6 +790,7 @@
         input.value = hospitalPhoneMap[hospitalName];
       });
       showToast(`已儲存「${hospitalName}」聯絡電話`, 'info');
+      syncHospitalPhonesToGoogle();
     }
 
     /* ========================================================
@@ -1203,6 +1295,9 @@
       // 存入歷程
       caseHistory.unshift({ ...activeCase });
       localStorage.setItem('cad_transfusion_records', JSON.stringify(caseHistory));
+
+      // 同步至 Google 雲端試算表與硬碟
+      syncCaseToGoogle({ ...activeCase });
 
       closeWorkflowModal();
       renderCaseHistory();
