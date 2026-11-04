@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>院前啟動輸血調度管制系統 - 指揮中心</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cad: {
+              bg: '#0b1120',
+              panel: '#151f32',
+              card: '#1e293b',
+              border: '#334155',
+              accent: '#38bdf8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    body {
+      font-family: 'Noto Sans TC', 'Inter', sans-serif;
+      background-color: #0b1120;
+      color: #e2e8f0;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 selection:bg-red-600 selection:text-white">
+
+  <!-- 頂部指揮中心狀態列 -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="h-10 w-10 rounded-xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-900/50">
+          <i class="fa-solid fa-droplet text-white text-xl animate-pulse"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg lg:text-xl font-black tracking-wide text-white">新竹縣消防局救災救護指揮中心</h1>
+            <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-950/80 text-red-400 border border-red-800/80">院前輸血調度系統</span>
+          </div>
+          <p class="text-xs text-slate-400">Pre-hospital Blood Transfusion Dispatch Console</p>
+        </div>
+      </div>
+
+      <!-- 右側系統狀態與時間 -->
+      <div class="flex items-center space-x-4 lg:space-x-6 text-sm">
+        <div class="hidden sm:flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <span class="text-xs text-slate-300 font-medium">連線狀態：正常管制</span>
+        </div>
+        <div class="text-right">
+          <div id="clockTime" class="font-mono text-base lg:text-lg font-bold text-sky-400 leading-none">00:00:00</div>
+          <div id="clockDate" class="text-[11px] text-slate-400 mt-0.5">YYYY/MM/DD 星期X</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容視窗 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 flex flex-col">
+
+    <!-- 儀表板快捷資訊卡片 -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4 mb-6">
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
+        <div>
+          <div class="text-xs text-slate-400 font-medium">已結案總數</div>
+          <div id="statTodayCount" class="text-2xl font-black text-white mt-1">0</div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
+        <div>
+          <div class="text-xs text-slate-400 font-medium">調度責任醫院</div>
+          <div class="text-2xl font-black text-red-400 mt-1">8 <span class="text-xs font-normal text-slate-500">家</span></div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-hospital"></i>
+        </div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
+        <div>
+          <div class="text-xs text-slate-400 font-medium">領血責任分隊</div>
+          <div class="text-2xl font-black text-emerald-400 mt-1">7 <span class="text-xs font-normal text-slate-500">隊</span></div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-truck-medical"></i>
+        </div>
+      </div>
+      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
+        <div>
+          <div class="text-xs text-slate-400 font-medium">支援TP單位</div>
+          <div class="text-2xl font-black text-amber-400 mt-1">7 <span class="text-xs font-normal text-slate-500">隊</span></div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg">
+          <i class="fa-solid fa-user-doctor"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- 首頁啟動大區塊 -->
+    <div id="homeSection" class="flex-1 flex flex-col justify-center items-center py-6">
+      <div class="w-full max-w-2xl bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-2xl p-6 lg:p-10 shadow-2xl text-center relative overflow-hidden">
+        <div class="absolute -top-24 -left-24 w-60 h-60 bg-red-600/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-60 h-60 bg-sky-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold tracking-wider mb-4">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>緊急醫療救護 COMMAND & CONTROL</span>
+        </div>
+
+        <h2 class="text-2xl lg:text-3xl font-black tracking-tight text-white mb-2">院前啟動輸血調度作業</h2>
+        <p class="text-slate-400 text-sm max-w-md mx-auto mb-8">
+          管制台執勤員專責操作系統。依序引導出勤檢核、TP支援判定、責任醫院備血、分隊取血與雙向通報確認。
+        </p>
+
+        <!-- 醒目的大按鈕 -->
+        <button id="btnStartProtocol" onclick="startWorkflow()" class="group relative w-full sm:w-auto inline-flex items-center justify-center px-10 py-5 text-xl font-black tracking-wider text-white transition-all duration-200 bg-gradient-to-r from-red-600 to-red-700 rounded-2xl shadow-xl shadow-red-950/60 hover:from-red-500 hover:to-red-600 hover:scale-[1.02] active:scale-[0.98] border border-red-500/40">
+          <i class="fa-solid fa-triangle-exclamation mr-3 text-2xl group-hover:scale-110 transition-transform"></i>
+          <span>啟動輸血流程</span>
+          <span class="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-300 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-4 w-4 bg-red-500"></span>
+          </span>
+        </button>
+
+        <div class="grid grid-cols-3 gap-2 mt-8 pt-6 border-t border-slate-800 text-slate-400 text-xs">
+          <div class="flex items-center justify-center space-x-1.5">
+            <i class="fa-solid fa-stethoscope text-sky-400"></i>
+            <span>TP 高級救護員檢核</span>
+          </div>
+          <div class="flex items-center justify-center space-x-1.5">
+            <i class="fa-solid fa-hospital text-red-400"></i>
+            <span>責任醫院備血聯絡</span>
+          </div>
+          <div class="flex items-center justify-center space-x-1.5">
+            <i class="fa-solid fa-clipboard-check text-emerald-400"></i>
+            <span>雙向通報結案存檔</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 案件記錄表格區域 -->
+      <div class="w-full mt-10">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-slate-300 flex items-center space-x-2">
+            <i class="fa-solid fa-clock-rotate-left text-slate-400"></i>
+            <span>近期輸血調度案件紀錄</span>
+          </h3>
+          <span class="text-xs text-slate-500">已自動儲存於管制台</span>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-800/80 text-slate-400 uppercase font-semibold border-b border-slate-700/60">
+                <tr>
+                  <th class="px-4 py-3">案號 / 時間</th>
+                  <th class="px-4 py-3">派遣員</th>
+                  <th class="px-4 py-3">出勤單位 / 地點</th>
+                  <th class="px-4 py-3">現場TP狀況</th>
+                  <th class="px-4 py-3">備血醫院 / 領血分隊</th>
+                  <th class="px-4 py-3">送醫責任醫院</th>
+                  <th class="px-4 py-3 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody id="caseHistoryTableBody" class="divide-y divide-slate-800/60">
+                <!-- 動態注入歷史案件 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 流程導引 Modal -->
+    <div id="workflowModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div class="bg-slate-900 border border-slate-700/80 w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col my-auto max-h-[94vh] overflow-hidden">
+        
+        <!-- Modal 頂部標題與步驟指示 -->
+        <div class="p-4 sm:p-5 border-b border-slate-800 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 rounded-lg bg-red-600 flex items-center justify-center text-white font-black">
+              <i class="fa-solid fa-tower-broadcast"></i>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="font-bold text-white text-base sm:text-lg">院前輸血派遣調度作業</h3>
+                <span id="currentCaseIdBadge" class="text-xs bg-slate-800 text-sky-400 font-mono px-2 py-0.5 rounded border border-slate-700">CAD-CASE-01</span>
+              </div>
+              <p class="text-xs text-slate-400">請依序核對並點選通報管制項目</p>
+            </div>
+          </div>
+          <button onclick="closeWorkflowModal()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <!-- 步驟指示進度條 -->
+        <div class="px-5 py-2.5 bg-slate-950/60 border-b border-slate-800 overflow-x-auto">
+          <div class="flex items-center justify-between min-w-[550px] text-xs">
+            <div id="stepTab-1" class="step-indicator active-step flex items-center space-x-1.5 font-semibold text-sky-400">
+              <span class="w-5 h-5 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[10px]">1</span>
+              <span>出勤與TP確認</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-600 text-[10px]"></i>
+            <div id="stepTab-2" class="step-indicator flex items-center space-x-1.5 font-semibold text-slate-500">
+              <span class="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px]">2</span>
+              <span>通知醫院備血</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-600 text-[10px]"></i>
+            <div id="stepTab-3" class="step-indicator flex items-center space-x-1.5 font-semibold text-slate-500">
+              <span class="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px]">3</span>
+              <span>通知分隊領血</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-600 text-[10px]"></i>
+            <div id="stepTab-4" class="step-indicator flex items-center space-x-1.5 font-semibold text-slate-500">
+              <span class="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px]">4</span>
+              <span>追蹤送醫選擇</span>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-600 text-[10px]"></i>
+            <div id="stepTab-5" class="step-indicator flex items-center space-x-1.5 font-semibold text-slate-500">
+              <span class="w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px]">5</span>
+              <span>通報確認與結案</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 步驟動態容器 -->
+        <div class="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6">
+
+          <!-- STEP 1: 現場單位 + 派遣員(自行登打必填) + TP確認(含無TP警示與加派) -->
+          <div id="stepContent-1" class="step-content space-y-5">
+            <div class="border-l-4 border-sky-500 pl-3">
+              <h4 class="text-base font-bold text-white">步驟 1：出勤單位、派遣員與現場 TP 資格確認</h4>
+              <p class="text-xs text-slate-400">確認現場出勤單位，並檢核現場是否有具輸血資格之高級救護員（TP）</p>
+            </div>
+
+            <!-- 基本欄位 (派遣員改為自行登打姓名) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5">值班派遣員姓名 <span class="text-red-400 font-bold">* (必填)</span></label>
+                <input type="text" id="inputDispatcher" placeholder="請登打派遣員姓名" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-sky-500">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5">轄區現場出勤單位 <span class="text-red-400 font-bold">*</span></label>
+                <select id="inputDispatchUnit" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-sky-500">
+                  <option value="">-- 請選擇出勤單位 --</option>
+                  <option value="光明分隊">光明分隊</option>
+                  <option value="竹東分隊">竹東分隊</option>
+                  <option value="湖口分隊">湖口分隊</option>
+                  <option value="二重分隊">二重分隊</option>
+                  <option value="芎林分隊">芎林分隊</option>
+                  <option value="橫山分隊">橫山分隊</option>
+                  <option value="尖石分隊">尖石分隊</option>
+                  <option value="其他轄區分隊">其他分隊</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5">案發地點 / 概略路段 <span class="text-red-400 font-bold">*</span></label>
+                <input type="text" id="inputLocation" placeholder="例如：台68線快速道路 15K" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-sky-500">
+              </div>
+            </div>
+
+            <!-- 確認現場有無 TP -->
+            <div class="bg-slate-800/80 p-5 rounded-xl border border-slate-700">
+              <p class="text-sm font-semibold text-slate-200 mb-3">
+                確認現場出勤人員：是否有具備輸血資格之高級救護技術員（TP）？ <span class="text-red-400 font-bold">*</span>
+              </p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button type="button" onclick="selectTPStatus(true)" id="tpYesBtn" class="p-4 rounded-xl border-2 border-slate-700 hover:border-emerald-500 bg-slate-900/60 flex items-center space-x-3 transition">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-user-doctor"></i>
+                  </div>
+                  <div class="text-left">
+                    <div class="font-bold text-white text-sm">【有 TP】現場有人員具備 TP 資格</div>
+                    <div class="text-xs text-slate-400">現場可執行醫療評估及輸血處置</div>
+                  </div>
+                </button>
+
+                <button type="button" onclick="selectTPStatus(false)" id="tpNoBtn" class="p-4 rounded-xl border-2 border-slate-700 hover:border-red-500 bg-slate-900/60 flex items-center space-x-3 transition">
+                  <div class="w-9 h-9 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                  </div>
+                  <div class="text-left">
+                    <div class="font-bold text-white text-sm">【無 TP】現場無輸血資格人員</div>
+                    <div class="text-xs text-slate-400">需立即啟動加派 TP 車組前往支援</div>
+                  </div>
+                </button>
+              </div>
+
+              <!-- 若現場無 TP：強制跳出醒目通知與加派選擇 (限定7個分隊) -->
+              <div id="tpWarningBox" class="hidden mt-6 p-4 rounded-xl bg-red-950/90 border-2 border-red-600 shadow-xl">
+                <div class="flex items-start space-x-3">
+                  <i class="fa-solid fa-triangle-exclamation text-red-400 text-2xl mt-0.5 animate-pulse"></i>
+                  <div class="flex-1">
+                    <div class="text-base font-black text-red-100">請派遣有輸血能力TP前往</div>
+                    <p class="text-xs text-red-300 mt-1 leading-relaxed">
+                      依院前輸血規範，現場無 TP 無法實施輸血。請指派具有輸血能力之 TP 單位前往現場會合支援。
+                    </p>
+                    
+                    <div class="mt-3 bg-slate-900/80 p-3 rounded-lg border border-red-500/40">
+                      <label class="block text-xs text-red-200 font-bold mb-1.5">選擇加派 TP 單位 *</label>
+                      <div class="flex flex-wrap gap-2 items-center">
+                        <select id="backupTPUnitSelect" class="bg-slate-900 border border-red-500 text-white text-xs rounded-lg px-3 py-2 focus:outline-none font-bold">
+                          <option value="">-- 請選擇加派 TP 單位 --</option>
+                          <option value="光明">光明</option>
+                          <option value="竹東">竹東</option>
+                          <option value="湖口">湖口</option>
+                          <option value="芎林">芎林</option>
+                          <option value="尖石">尖石</option>
+                          <option value="橫山">橫山</option>
+                          <option value="二重">二重</option>
+                        </select>
+                        <button type="button" onclick="confirmDispatchBackupTP()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg shadow transition">
+                          確認指派
+                        </button>
+                      </div>
+                      <div id="backupTPLogStatus" class="text-xs text-emerald-400 mt-2 font-medium hidden">
+                        <i class="fa-solid fa-circle-check"></i> 已確認加派單位。
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 若有 TP -->
+              <div id="tpSuccessBox" class="hidden mt-4 p-3 rounded-lg bg-emerald-950/60 border border-emerald-600/80 text-emerald-300 text-xs flex items-center space-x-2">
+                <i class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+                <span>【TP資格確認】現場已有合格 TP 高級救護技術員。</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2: 通知醫院備血 (8家醫院，每家下方自帶可編輯持久儲存電話，點選後需確認聯絡完成) -->
+          <div id="stepContent-2" class="step-content hidden space-y-4">
+            <div class="border-l-4 border-red-500 pl-3">
+              <h4 class="text-base font-bold text-white">步驟 2：通知責任醫院備血</h4>
+              <p class="text-xs text-slate-400">點選備血責任醫院；點選完後請通知醫院血庫並按下「確認聯絡完成」</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-2">點選責任醫院（單選）<span class="text-red-400 font-bold">*</span></label>
+              <!-- 8家責任醫院卡片網格 -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="bloodBankHospitalGrid">
+                <!-- 動態注入八家醫院 -->
+              </div>
+            </div>
+
+            <!-- 點選完後跳出：是否聯絡完成確認框 -->
+            <div id="step2ConfirmBox" class="hidden p-4 rounded-xl bg-slate-900 border-2 border-red-500/80 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+              <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-base">
+                  <i class="fa-solid fa-phone-volume animate-pulse"></i>
+                </div>
+                <div>
+                  <div class="text-sm font-bold text-white">通知醫院備血：是否聯絡完成？</div>
+                  <div class="text-xs text-slate-400">已通知：<span id="step2TargetHospitalText" class="text-red-400 font-bold">-</span></div>
+                </div>
+              </div>
+              <button type="button" id="btnConfirmStep2Contact" onclick="confirmStep2Contacted()" class="px-5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700">
+                <i class="fa-regular fa-square-check text-base"></i>
+                <span id="btnConfirmStep2ContactText">點擊「確認聯絡完成」</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP 3: 通知分隊領血 (7個分隊) -->
+          <div id="stepContent-3" class="step-content hidden space-y-4">
+            <div class="border-l-4 border-emerald-500 pl-3">
+              <h4 class="text-base font-bold text-white">步驟 3：通知分隊領血</h4>
+              <p class="text-xs text-slate-400">點選通知領血分隊前往已通知之責任醫院領取血液</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-2">通知領血分隊（單選）<span class="text-red-400 font-bold">*</span></label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5" id="pickupSquadGrid">
+                <!-- 光明、竹東、湖口、二重、芎林、橫山、尖石 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 4: 追蹤送醫選擇 (8家醫院，點選後需確認聯絡完成) -->
+          <div id="stepContent-4" class="step-content hidden space-y-4">
+            <div class="border-l-4 border-purple-500 pl-3">
+              <h4 class="text-base font-bold text-white">步驟 4：追蹤送醫選擇</h4>
+              <p class="text-xs text-slate-400">點選送醫之受血責任醫院；點選完後請通知受血醫院急診並按下「確認聯絡完成」</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-2">點選受血醫院（單選）<span class="text-red-400 font-bold">*</span></label>
+              <!-- 8家送醫醫院卡片網格 -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="destHospitalGrid">
+                <!-- 動態注入八家醫院 -->
+              </div>
+            </div>
+
+            <!-- 點選完後跳出：是否聯絡完成確認框 -->
+            <div id="step4ConfirmBox" class="hidden p-4 rounded-xl bg-slate-900 border-2 border-purple-500/80 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+              <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-base">
+                  <i class="fa-solid fa-phone-volume animate-pulse"></i>
+                </div>
+                <div>
+                  <div class="text-sm font-bold text-white">受血醫院通報：是否聯絡完成？</div>
+                  <div class="text-xs text-slate-400">已通知：<span id="step4TargetHospitalText" class="text-purple-400 font-bold">-</span></div>
+                </div>
+              </div>
+              <button type="button" id="btnConfirmStep4Contact" onclick="confirmStep4Contacted()" class="px-5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700">
+                <i class="fa-regular fa-square-check text-base"></i>
+                <span id="btnConfirmStep4ContactText">點擊「確認聯絡完成」</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- STEP 5: 分別通知領血及受血醫院，並出現「已完成通知」按鈕供確認，按下後出現結案存檔按鈕 -->
+          <div id="stepContent-5" class="step-content hidden space-y-5">
+            <div class="border-l-4 border-sky-400 pl-3">
+              <h4 class="text-base font-bold text-white">步驟 5：通知確認與結案存檔</h4>
+              <p class="text-xs text-slate-400">分別檢視領血端及受血醫院通報內容，按下「已完成通知」後結案存檔</p>
+            </div>
+
+            <!-- 分別列出 領血端 與 受血醫院 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- 領血端 -->
+              <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-700">
+                  <span class="font-bold text-sm text-amber-400 flex items-center space-x-1.5">
+                    <i class="fa-solid fa-box-tissue"></i>
+                    <span>領血端（備血責任醫院 & 領血分隊）</span>
+                  </span>
+                  <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-medium">備血通報</span>
+                </div>
+                <div class="space-y-2 text-xs">
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">備血責任醫院：</span>
+                    <span id="finalBloodBankHospital" class="font-semibold text-white">未選取</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">醫院聯絡電話：</span>
+                    <span id="finalBloodBankPhone" class="font-mono text-amber-300 font-semibold">-</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">指定領血分隊：</span>
+                    <span id="finalPickupSquad" class="font-semibold text-white">未選取</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 受血醫院 -->
+              <div class="bg-slate-800/80 border border-slate-700 p-4 rounded-xl space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-700">
+                  <span class="font-bold text-sm text-sky-400 flex items-center space-x-1.5">
+                    <i class="fa-solid fa-hospital-user"></i>
+                    <span>受血醫院</span>
+                  </span>
+                  <span class="text-xs px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-medium">送醫通報</span>
+                </div>
+                <div class="space-y-2 text-xs">
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">受血責任醫院：</span>
+                    <span id="finalDestHospital" class="font-semibold text-white">未選取</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">醫院聯絡電話：</span>
+                    <span id="finalDestHospitalPhone" class="font-mono text-sky-300 font-semibold">-</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">現場 TP 人力：</span>
+                    <span id="finalTPStatus" class="font-semibold text-emerald-400">現場有 TP</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-slate-400">值班派遣員：</span>
+                    <span id="finalDispatcher" class="text-slate-200 font-medium">-</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- "已完成通知" 按鈕供確認 -->
+            <div class="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div class="font-bold text-white text-sm">管制台通報確認</div>
+                <div class="text-xs text-slate-400">請確認已分別通知領血端及受血醫院</div>
+              </div>
+
+              <!-- 已完成通知按鈕 -->
+              <button type="button" id="btnConfirmNotified" onclick="toggleDualNotificationConfirmed()" class="px-6 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center space-x-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 shadow">
+                <i class="fa-regular fa-square-check text-lg"></i>
+                <span id="btnConfirmNotifiedText">點擊確認「已完成通知」</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 彈出窗底部按鈕列 -->
+        <div class="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
+          <button type="button" id="btnPrevStep" onclick="navigateStep(-1)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-lg transition disabled:opacity-40 disabled:pointer-events-none">
+            <i class="fa-solid fa-arrow-left mr-1.5"></i> 上一步
+          </button>
+
+          <div class="flex items-center space-x-3">
+            <button type="button" onclick="closeWorkflowModal()" class="px-3.5 py-2 text-xs text-slate-400 hover:text-white transition">
+              取消退出
+            </button>
+            <button type="button" id="btnNextStep" onclick="navigateStep(1)" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white rounded-lg shadow-md transition">
+              下一步 <i class="fa-solid fa-arrow-right ml-1.5"></i>
+            </button>
+            <button type="button" id="btnFinishWorkflow" onclick="completeAndSaveCase()" class="hidden px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-xs font-black text-white rounded-lg shadow-lg shadow-emerald-950 transition flex items-center space-x-2">
+              <i class="fa-solid fa-box-archive"></i>
+              <span>結案存檔</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 案件詳情檢視 Modal -->
+    <div id="caseDetailModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div class="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl p-5 sm:p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-file-medical text-red-400 text-lg"></i>
+            <h3 class="text-base font-bold text-white">院前輸血派遣調度結案紀錄單</h3>
+          </div>
+          <button onclick="closeCaseDetailModal()" class="text-slate-400 hover:text-white">
+            <i class="fa-solid fa-xmark text-lg"></i>
+          </button>
+        </div>
+
+        <div id="caseDetailContent" class="text-xs space-y-3 text-slate-300">
+          <!-- 動態載入 -->
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex items-center justify-end space-x-2">
+          <button onclick="copyDetailText()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 rounded-lg">
+            <i class="fa-solid fa-copy mr-1"></i> 複製通報內容
+          </button>
+          <button onclick="window.print()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white rounded-lg">
+            <i class="fa-solid fa-print mr-1"></i> 列印案件紀錄
+          </button>
+          <button onclick="closeCaseDetailModal()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-xs text-white rounded-lg">
+            關閉
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 全域提示訊息浮動通知 (Toast) -->
+    <div id="toastMessage" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-xs">
+      <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+      <span id="toastText">訊息提示</span>
+    </div>
+
+  </main>
+
+  <footer class="mt-auto border-t border-slate-800/80 bg-slate-900/60 py-3 text-center text-[11px] text-slate-500">
+    消防局救災救護指揮中心 院前緊急醫療輸血調度系統 &copy; 2026
+  </footer>
+
+  <script>
+    /* ========================================================
+       資料設定與常數定義
+       ======================================================== */
+    // 八家責任醫院清單
+    const HOSPITALS = [
+      { id: 'h1', name: '竹北東元', defaultPhone: '03-5527000' },
+      { id: 'h2', name: '中醫大', defaultPhone: '03-5580558' },
+      { id: 'h3', name: '湖口仁慈', defaultPhone: '03-5993500' },
+      { id: 'h4', name: '新竹馬偕', defaultPhone: '03-6119595' },
+      { id: 'h5', name: '生醫台大', defaultPhone: '03-6691300' },
+      { id: 'h6', name: '新竹台大', defaultPhone: '03-5326151' },
+      { id: 'h7', name: '竹東台大', defaultPhone: '03-5943248' },
+      { id: 'h8', name: '竹東榮民', defaultPhone: '03-5962134' }
+    ];
+
+    // 七個領血分隊清單
+    const PICKUP_SQUADS = [
+      { name: '光明' },
+      { name: '竹東' },
+      { name: '湖口' },
+      { name: '二重' },
+      { name: '芎林' },
+      { name: '橫山' },
+      { name: '尖石' }
+    ];
+
+    // 加派 TP 支援單位清單（嚴格限定七個分隊）
+    const BACKUP_TP_SQUADS = ['光明', '竹東', '湖口', '芎林', '尖石', '橫山', '二重'];
+
+    // 當前暫存案件資料
+    let activeCase = {
+      caseId: '',
+      startTime: '',
+      dispatcher: '',
+      dispatchUnit: '',
+      location: '',
+      hasTP: null,
+      backupTPDispatched: false,
+      backupTPUnit: '',
+      bloodBankHospital: '',
+      bloodBankPhone: '',
+      isStep2Contacted: false, // 步驟2是否聯絡完成
+      pickupSquad: '',
+      destHospital: '',
+      destHospitalPhone: '',
+      isStep4Contacted: false, // 步驟4是否聯絡完成
+      isNotificationConfirmed: false,
+      logs: []
+    };
+
+    let currentStep = 1;
+    const TOTAL_STEPS = 5;
+    let caseHistory = [];
+
+    // 儲存各醫院的電話紀錄（支援 LocalStorage 持久化儲存與帶入）
+    let hospitalPhoneMap = {};
+
+    /* ========================================================
+       初始化
+       ======================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      startClock();
+      loadHospitalPhones();
+      renderHospitalGrids();
+      renderPickupSquadGrid();
+      loadStoredCases();
+      updateDashboardStats();
+    });
+
+    function startClock() {
+      const update = () => {
+        const now = new Date();
+        const days = ['日', '一', '二', '三', '四', '五', '六'];
+        document.getElementById('clockTime').textContent = now.toTimeString().split(' ')[0];
+        document.getElementById('clockDate').textContent = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} 星期${days[now.getDay()]}`;
+      };
+      update();
+      setInterval(update, 1000);
+    }
+
+    // 載入醫院持久化電話
+    function loadHospitalPhones() {
+      const stored = localStorage.getItem('cad_hospital_phones');
+      if (stored) {
+        try {
+          hospitalPhoneMap = JSON.parse(stored);
+        } catch (e) {
+          hospitalPhoneMap = {};
+        }
+      }
+      // 確保每家都有值
+      HOSPITALS.forEach(h => {
+        if (!hospitalPhoneMap[h.name]) {
+          hospitalPhoneMap[h.name] = h.defaultPhone;
+        }
+      });
+    }
+
+    // 儲存醫院電話至 LocalStorage
+    function saveHospitalPhone(hospitalName, newPhone) {
+      hospitalPhoneMap[hospitalName] = newPhone.trim();
+      localStorage.setItem('cad_hospital_phones', JSON.stringify(hospitalPhoneMap));
+      // 同步更新所有相關聯絡欄位
+      document.querySelectorAll(`input[data-hospital="${hospitalName}"]`).forEach(input => {
+        input.value = hospitalPhoneMap[hospitalName];
+      });
+      showToast(`已儲存「${hospitalName}」聯絡電話`, 'info');
+    }
+
+    /* ========================================================
+       渲染醫院卡片（含即時可編輯電話欄）
+       ======================================================== */
+    function renderHospitalGrids() {
+      const bloodGrid = document.getElementById('bloodBankHospitalGrid');
+      const destGrid = document.getElementById('destHospitalGrid');
+      bloodGrid.innerHTML = '';
+      destGrid.innerHTML = '';
+
+      HOSPITALS.forEach(h => {
+        const currentPhone = hospitalPhoneMap[h.name] || h.defaultPhone;
+
+        // 1. 步驟 2：備血責任醫院卡片
+        const bloodCard = document.createElement('div');
+        bloodCard.id = `card-blood-${h.name}`;
+        bloodCard.className = 'hospital-card p-3 rounded-xl border border-slate-700 bg-slate-900/80 transition flex flex-col justify-between hover:border-red-500/80';
+        bloodCard.innerHTML = `
+          <div onclick="selectBloodBankHospital('${h.name}')" class="cursor-pointer flex items-center justify-between pb-2 border-b border-slate-800">
+            <span class="font-bold text-sm text-white">${h.name}</span>
+            <span class="blood-check-badge text-slate-600 text-xs"><i class="fa-regular fa-circle-check"></i> 點選</span>
+          </div>
+          <div class="mt-2.5">
+            <label class="block text-[11px] text-slate-400 mb-1">聯絡電話 (可編輯並自動儲存)：</label>
+            <div class="flex items-center space-x-1.5">
+              <input type="text" data-hospital="${h.name}" value="${currentPhone}" onchange="saveHospitalPhone('${h.name}', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-sky-300 font-mono focus:outline-none focus:border-sky-500">
+              <button type="button" onclick="saveHospitalPhone('${h.name}', this.previousElementSibling.value)" title="儲存電話" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-xs">
+                <i class="fa-solid fa-floppy-disk"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        bloodGrid.appendChild(bloodCard);
+
+        // 2. 步驟 4：送醫責任醫院卡片
+        const destCard = document.createElement('div');
+        destCard.id = `card-dest-${h.name}`;
+        destCard.className = 'dest-card p-3 rounded-xl border border-slate-700 bg-slate-900/80 transition flex flex-col justify-between hover:border-purple-500/80';
+        destCard.innerHTML = `
+          <div onclick="selectDestHospital('${h.name}')" class="cursor-pointer flex items-center justify-between pb-2 border-b border-slate-800">
+            <span class="font-bold text-sm text-white">${h.name}</span>
+            <span class="dest-check-badge text-slate-600 text-xs"><i class="fa-regular fa-circle-check"></i> 點選</span>
+          </div>
+          <div class="mt-2.5">
+            <label class="block text-[11px] text-slate-400 mb-1">急診電話 (可編輯並自動儲存)：</label>
+            <div class="flex items-center space-x-1.5">
+              <input type="text" data-hospital="${h.name}" value="${currentPhone}" onchange="saveHospitalPhone('${h.name}', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-sky-300 font-mono focus:outline-none focus:border-sky-500">
+              <button type="button" onclick="saveHospitalPhone('${h.name}', this.previousElementSibling.value)" title="儲存電話" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-xs">
+                <i class="fa-solid fa-floppy-disk"></i>
+              </button>
+            </div>
+          </div>
+        `;
+        destGrid.appendChild(destCard);
+      });
+    }
+
+    // 渲染領血分隊（7隊）
+    function renderPickupSquadGrid() {
+      const container = document.getElementById('pickupSquadGrid');
+      container.innerHTML = '';
+
+      PICKUP_SQUADS.forEach(sq => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = `btn-squad-${sq.name}`;
+        btn.className = 'squad-btn p-3 rounded-xl border border-slate-700 bg-slate-900/80 hover:border-emerald-500 text-center transition';
+        btn.onclick = () => selectPickupSquad(sq.name);
+        btn.innerHTML = `
+          <div class="font-black text-sm text-slate-200">${sq.name}</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">分隊</div>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    /* ========================================================
+       流程啟動與步驟管理
+       ======================================================== */
+    function startWorkflow() {
+      const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+      const randomId = Math.floor(100 + Math.random() * 900);
+      const newCaseId = `CAD-${dateStr}-${randomId}`;
+
+      activeCase = {
+        caseId: newCaseId,
+        startTime: new Date().toLocaleTimeString(),
+        dispatcher: '',
+        dispatchUnit: '',
+        location: '',
+        hasTP: null,
+        backupTPDispatched: false,
+        backupTPUnit: '',
+        bloodBankHospital: '',
+        bloodBankPhone: '',
+        isStep2Contacted: false,
+        pickupSquad: '',
+        destHospital: '',
+        destHospitalPhone: '',
+        isStep4Contacted: false,
+        isNotificationConfirmed: false,
+        logs: [`[${new Date().toLocaleTimeString()}] 指揮中心開啟輸血調度程序`]
+      };
+
+      document.getElementById('currentCaseIdBadge').textContent = newCaseId;
+      document.getElementById('inputDispatcher').value = '';
+      document.getElementById('inputDispatchUnit').value = '';
+      document.getElementById('inputLocation').value = '';
+      document.getElementById('backupTPUnitSelect').value = '';
+
+      // 重設步驟 2、4 聯絡確認盒
+      resetStep2ContactUI();
+      resetStep4ContactUI();
+
+      // 清除各選擇卡片樣式
+      document.querySelectorAll('.hospital-card, .dest-card').forEach(c => {
+        c.classList.remove('border-red-500', 'bg-red-950/30', 'border-purple-500', 'bg-purple-950/30', 'ring-2', 'ring-red-500', 'ring-purple-500');
+        const badge = c.querySelector('.blood-check-badge, .dest-check-badge');
+        if (badge) {
+          badge.className = badge.className.replace('text-red-400 text-purple-400 font-bold', 'text-slate-600');
+          badge.innerHTML = `<i class="fa-regular fa-circle-check"></i> 點選`;
+        }
+      });
+      document.querySelectorAll('.squad-btn').forEach(b => {
+        b.classList.remove('border-emerald-500', 'bg-emerald-950/40', 'ring-2', 'ring-emerald-500');
+      });
+
+      resetTPUI();
+      resetNotificationConfirmedButton();
+
+      currentStep = 1;
+      showStep(currentStep);
+      document.getElementById('workflowModal').classList.remove('hidden');
+    }
+
+    function closeWorkflowModal() {
+      document.getElementById('workflowModal').classList.add('hidden');
+    }
+
+    function showStep(stepNumber) {
+      currentStep = stepNumber;
+
+      for (let i = 1; i <= TOTAL_STEPS; i++) {
+        const el = document.getElementById(`stepContent-${i}`);
+        const tab = document.getElementById(`stepTab-${i}`);
+        if (el) el.classList.toggle('hidden', i !== stepNumber);
+        
+        if (tab) {
+          if (i === stepNumber) {
+            tab.className = 'step-indicator flex items-center space-x-1.5 font-bold text-sky-400';
+            tab.querySelector('span:first-child').className = 'w-5 h-5 rounded-full bg-sky-500/20 border border-sky-400 flex items-center justify-center text-[10px] text-sky-300 font-bold';
+          } else if (i < stepNumber) {
+            tab.className = 'step-indicator flex items-center space-x-1.5 font-medium text-emerald-400';
+            tab.querySelector('span:first-child').className = 'w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-[10px] text-emerald-400';
+          } else {
+            tab.className = 'step-indicator flex items-center space-x-1.5 font-normal text-slate-500';
+            tab.querySelector('span:first-child').className = 'w-5 h-5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] text-slate-500';
+          }
+        }
+      }
+
+      document.getElementById('btnPrevStep').disabled = (stepNumber === 1);
+      const btnNext = document.getElementById('btnNextStep');
+      const btnFinish = document.getElementById('btnFinishWorkflow');
+
+      if (stepNumber === TOTAL_STEPS) {
+        btnNext.classList.add('hidden');
+        // 步驟5結案存檔按鈕預設隱藏，按「已完成通知」後才顯示
+        if (activeCase.isNotificationConfirmed) {
+          btnFinish.classList.remove('hidden');
+        } else {
+          btnFinish.classList.add('hidden');
+        }
+        refreshStep5Summaries();
+      } else {
+        btnNext.classList.remove('hidden');
+        btnFinish.classList.add('hidden');
+      }
+    }
+
+    function navigateStep(direction) {
+      if (direction === 1) {
+        if (!validateStep(currentStep)) return;
+      }
+      const target = currentStep + direction;
+      if (target >= 1 && target <= TOTAL_STEPS) {
+        showStep(target);
+      }
+    }
+
+    /* ========================================================
+       各步驟驗證
+       ======================================================== */
+    function validateStep(step) {
+      // 步驟 1：派遣員必填、出勤單位、地點、現場TP檢核
+      if (step === 1) {
+        const dispatcher = document.getElementById('inputDispatcher').value.trim();
+        const unit = document.getElementById('inputDispatchUnit').value;
+        const loc = document.getElementById('inputLocation').value.trim();
+
+        if (!dispatcher) {
+          showToast('【必填】請登打值班派遣員姓名！', 'error');
+          document.getElementById('inputDispatcher').focus();
+          return false;
+        }
+        if (!unit) {
+          showToast('請選擇轄區現場出勤單位！', 'warn');
+          return false;
+        }
+        if (!loc) {
+          showToast('請輸入案發地點或概略路段！', 'warn');
+          return false;
+        }
+        if (activeCase.hasTP === null) {
+          showToast('請點選確認現場是否具備 TP 資格！', 'error');
+          return false;
+        }
+        if (activeCase.hasTP === false && !activeCase.backupTPDispatched) {
+          showToast('現場無 TP！請選擇加派 TP 單位並點擊確認指派！', 'error');
+          return false;
+        }
+
+        activeCase.dispatcher = dispatcher;
+        activeCase.dispatchUnit = unit;
+        activeCase.location = loc;
+        activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 派遣員：${dispatcher}，出勤單位：${unit}，地點：${loc}`);
+        return true;
+      }
+
+      // 步驟 2：備血醫院單選 + 確認聯絡完成
+      if (step === 2) {
+        if (!activeCase.bloodBankHospital) {
+          showToast('請點選責任醫院！', 'warn');
+          return false;
+        }
+        if (!activeCase.isStep2Contacted) {
+          showToast('請按下「確認聯絡完成」按鈕後，才可以下一步！', 'error');
+          return false;
+        }
+        activeCase.bloodBankPhone = hospitalPhoneMap[activeCase.bloodBankHospital] || '';
+        activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 通知責任醫院備血完成：${activeCase.bloodBankHospital} (電話: ${activeCase.bloodBankPhone})`);
+        return true;
+      }
+
+      // 步驟 3：通知領血分隊
+      if (step === 3) {
+        if (!activeCase.pickupSquad) {
+          showToast('請點選通知領血分隊！', 'warn');
+          return false;
+        }
+        activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 通知領血分隊：${activeCase.pickupSquad}分隊`);
+        return true;
+      }
+
+      // 步驟 4：送醫醫院選擇 + 確認聯絡完成
+      if (step === 4) {
+        if (!activeCase.destHospital) {
+          showToast('請點選受血責任醫院！', 'warn');
+          return false;
+        }
+        if (!activeCase.isStep4Contacted) {
+          showToast('請按下「確認聯絡完成」按鈕後，才可以下一步！', 'error');
+          return false;
+        }
+        activeCase.destHospitalPhone = hospitalPhoneMap[activeCase.destHospital] || '';
+        activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 受血責任醫院通報完成：${activeCase.destHospital} (電話: ${activeCase.destHospitalPhone})`);
+        return true;
+      }
+
+      return true;
+    }
+
+    // TP 確認邏輯
+    function selectTPStatus(hasTP) {
+      activeCase.hasTP = hasTP;
+      const yesBtn = document.getElementById('tpYesBtn');
+      const noBtn = document.getElementById('tpNoBtn');
+      const warningBox = document.getElementById('tpWarningBox');
+      const successBox = document.getElementById('tpSuccessBox');
+
+      if (hasTP) {
+        yesBtn.className = 'p-4 rounded-xl border-2 border-emerald-500 bg-emerald-950/40 flex items-center space-x-3 transition ring-2 ring-emerald-500/50';
+        noBtn.className = 'p-4 rounded-xl border-2 border-slate-700 bg-slate-900/60 flex items-center space-x-3 transition opacity-50';
+        warningBox.classList.add('hidden');
+        successBox.classList.remove('hidden');
+        activeCase.backupTPDispatched = false;
+        activeCase.backupTPUnit = '';
+        activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 現場確認已有合格 TP`);
+      } else {
+        noBtn.className = 'p-4 rounded-xl border-2 border-red-500 bg-red-950/60 flex items-center space-x-3 transition ring-2 ring-red-500/60';
+        yesBtn.className = 'p-4 rounded-xl border-2 border-slate-700 bg-slate-900/60 flex items-center space-x-3 transition opacity-50';
+        warningBox.classList.remove('hidden');
+        successBox.classList.add('hidden');
+        showToast('請派遣有輸血能力TP前往', 'error');
+      }
+    }
+
+    // 確認加派支援 TP (限定七個分隊)
+    function confirmDispatchBackupTP() {
+      const unit = document.getElementById('backupTPUnitSelect').value;
+      if (!unit) {
+        showToast('請選擇加派 TP 單位！', 'warn');
+        return;
+      }
+      activeCase.backupTPDispatched = true;
+      activeCase.backupTPUnit = `${unit}分隊`;
+      document.getElementById('backupTPLogStatus').classList.remove('hidden');
+      document.getElementById('backupTPLogStatus').innerHTML = `<i class="fa-solid fa-circle-check"></i> 已確認派遣：${unit}分隊 TP 前往現場！`;
+      activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 【加派支援】指派 ${unit}分隊 TP 前往`);
+      showToast(`已指派：${unit}分隊 TP 前往支援！`, 'success');
+    }
+
+    function resetTPUI() {
+      document.getElementById('tpYesBtn').className = 'p-4 rounded-xl border-2 border-slate-700 hover:border-emerald-500 bg-slate-900/60 flex items-center space-x-3 transition';
+      document.getElementById('tpNoBtn').className = 'p-4 rounded-xl border-2 border-slate-700 hover:border-red-500 bg-slate-900/60 flex items-center space-x-3 transition';
+      document.getElementById('tpWarningBox').classList.add('hidden');
+      document.getElementById('tpSuccessBox').classList.add('hidden');
+      document.getElementById('backupTPLogStatus').classList.add('hidden');
+    }
+
+    // 點選責任醫院 (步驟2)
+    function selectBloodBankHospital(hName) {
+      activeCase.bloodBankHospital = hName;
+      activeCase.bloodBankPhone = hospitalPhoneMap[hName] || '';
+      activeCase.isStep2Contacted = false; // 重設聯絡確認
+
+      document.querySelectorAll('#bloodBankHospitalGrid .hospital-card').forEach(c => {
+        c.classList.remove('border-red-500', 'bg-red-950/40', 'ring-2', 'ring-red-500/50');
+        const badge = c.querySelector('.blood-check-badge');
+        if (badge) {
+          badge.className = 'blood-check-badge text-slate-600 text-xs';
+          badge.innerHTML = `<i class="fa-regular fa-circle-check"></i> 點選`;
+        }
+      });
+
+      const selected = document.getElementById(`card-blood-${hName}`);
+      if (selected) {
+        selected.classList.add('border-red-500', 'bg-red-950/40', 'ring-2', 'ring-red-500/50');
+        const badge = selected.querySelector('.blood-check-badge');
+        if (badge) {
+          badge.className = 'blood-check-badge text-red-400 font-bold text-xs';
+          badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> 已選擇備血`;
+        }
+      }
+
+      // 跳出是否聯絡完成通知
+      const box = document.getElementById('step2ConfirmBox');
+      box.classList.remove('hidden');
+      document.getElementById('step2TargetHospitalText').textContent = `${hName} (電話: ${activeCase.bloodBankPhone})`;
+      resetStep2ContactButton();
+    }
+
+    function confirmStep2Contacted() {
+      activeCase.isStep2Contacted = true;
+      const btn = document.getElementById('btnConfirmStep2Contact');
+      btn.className = 'px-5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md ring-2 ring-emerald-400';
+      btn.innerHTML = `<i class="fa-solid fa-circle-check text-base"></i><span>已確認聯絡完成 (可進行下一步)</span>`;
+      showToast(`已確認與「${activeCase.bloodBankHospital}」備血聯絡完成！`, 'success');
+    }
+
+    function resetStep2ContactButton() {
+      const btn = document.getElementById('btnConfirmStep2Contact');
+      btn.className = 'px-5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700';
+      btn.innerHTML = `<i class="fa-regular fa-square-check text-base"></i><span>點擊「確認聯絡完成」</span>`;
+    }
+
+    function resetStep2ContactUI() {
+      document.getElementById('step2ConfirmBox').classList.add('hidden');
+      resetStep2ContactButton();
+    }
+
+    // 點選領血分隊 (步驟3)
+    function selectPickupSquad(sqName) {
+      activeCase.pickupSquad = sqName;
+      document.querySelectorAll('#pickupSquadGrid .squad-btn').forEach(btn => {
+        btn.classList.remove('border-emerald-500', 'bg-emerald-950/40', 'ring-2', 'ring-emerald-500');
+      });
+      const selected = document.getElementById(`btn-squad-${sqName}`);
+      if (selected) {
+        selected.classList.add('border-emerald-500', 'bg-emerald-950/40', 'ring-2', 'ring-emerald-500');
+      }
+      showToast(`已點選通知領血分隊：${sqName}`, 'info');
+    }
+
+    // 點選受血醫院 (步驟4)
+    function selectDestHospital(hName) {
+      activeCase.destHospital = hName;
+      activeCase.destHospitalPhone = hospitalPhoneMap[hName] || '';
+      activeCase.isStep4Contacted = false; // 重設聯絡確認
+
+      document.querySelectorAll('#destHospitalGrid .dest-card').forEach(c => {
+        c.classList.remove('border-purple-500', 'bg-purple-950/40', 'ring-2', 'ring-purple-500/50');
+        const badge = c.querySelector('.dest-check-badge');
+        if (badge) {
+          badge.className = 'dest-check-badge text-slate-600 text-xs';
+          badge.innerHTML = `<i class="fa-regular fa-circle-check"></i> 點選`;
+        }
+      });
+
+      const selected = document.getElementById(`card-dest-${hName}`);
+      if (selected) {
+        selected.classList.add('border-purple-500', 'bg-purple-950/40', 'ring-2', 'ring-purple-500/50');
+        const badge = selected.querySelector('.dest-check-badge');
+        if (badge) {
+          badge.className = 'dest-check-badge text-purple-400 font-bold text-xs';
+          badge.innerHTML = `<i class="fa-solid fa-circle-check"></i> 已選擇送醫`;
+        }
+      }
+
+      // 跳出是否聯絡完成通知
+      const box = document.getElementById('step4ConfirmBox');
+      box.classList.remove('hidden');
+      document.getElementById('step4TargetHospitalText').textContent = `${hName} (電話: ${activeCase.destHospitalPhone})`;
+      resetStep4ContactButton();
+    }
+
+    function confirmStep4Contacted() {
+      activeCase.isStep4Contacted = true;
+      const btn = document.getElementById('btnConfirmStep4Contact');
+      btn.className = 'px-5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md ring-2 ring-emerald-400';
+      btn.innerHTML = `<i class="fa-solid fa-circle-check text-base"></i><span>已確認聯絡完成 (可進行下一步)</span>`;
+      showToast(`已確認與「${activeCase.destHospital}」受血通報完成！`, 'success');
+    }
+
+    function resetStep4ContactButton() {
+      const btn = document.getElementById('btnConfirmStep4Contact');
+      btn.className = 'px-5 py-2.5 rounded-lg text-xs font-bold transition flex items-center space-x-2 bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700';
+      btn.innerHTML = `<i class="fa-regular fa-square-check text-base"></i><span>點擊「確認聯絡完成」</span>`;
+    }
+
+    function resetStep4ContactUI() {
+      document.getElementById('step4ConfirmBox').classList.add('hidden');
+      resetStep4ContactButton();
+    }
+
+    /* ========================================================
+       步驟 5：通報確認與結案
+       ======================================================== */
+    function refreshStep5Summaries() {
+      // 領血端
+      document.getElementById('finalBloodBankHospital').textContent = activeCase.bloodBankHospital || '未選取';
+      document.getElementById('finalBloodBankPhone').textContent = activeCase.bloodBankPhone || '-';
+      document.getElementById('finalPickupSquad').textContent = activeCase.pickupSquad ? `${activeCase.pickupSquad}分隊` : '未選取';
+
+      // 受血端
+      document.getElementById('finalDestHospital').textContent = activeCase.destHospital || '未選取';
+      document.getElementById('finalDestHospitalPhone').textContent = activeCase.destHospitalPhone || '-';
+      document.getElementById('finalDispatcher').textContent = activeCase.dispatcher || '未填寫';
+
+      const tpSummary = document.getElementById('finalTPStatus');
+      if (activeCase.hasTP) {
+        tpSummary.className = 'font-semibold text-emerald-400';
+        tpSummary.textContent = '現場有 TP';
+      } else {
+        tpSummary.className = 'font-semibold text-amber-400';
+        tpSummary.textContent = `無 TP (已加派 ${activeCase.backupTPUnit} TP)`;
+      }
+    }
+
+    // 點擊確認「已完成通知」-> 出現結案存檔按鈕
+    function toggleDualNotificationConfirmed() {
+      activeCase.isNotificationConfirmed = !activeCase.isNotificationConfirmed;
+      const btn = document.getElementById('btnConfirmNotified');
+      const finishBtn = document.getElementById('btnFinishWorkflow');
+
+      if (activeCase.isNotificationConfirmed) {
+        btn.className = 'px-6 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950 ring-2 ring-emerald-400';
+        btn.innerHTML = `<i class="fa-solid fa-circle-check text-lg"></i><span>已完成通知</span>`;
+        finishBtn.classList.remove('hidden'); // 出現結案存檔按鈕
+        showToast('已確認完成通知！請點選右下角「結案存檔」。', 'success');
+        activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 管制台確認已完成通知（領血端及受血醫院）`);
+      } else {
+        resetNotificationConfirmedButton();
+        finishBtn.classList.add('hidden');
+      }
+    }
+
+    function resetNotificationConfirmedButton() {
+      const btn = document.getElementById('btnConfirmNotified');
+      if (btn) {
+        btn.className = 'px-6 py-3 rounded-xl font-black text-sm transition-all flex items-center justify-center space-x-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 shadow';
+        btn.innerHTML = `<i class="fa-regular fa-square-check text-lg"></i><span id="btnConfirmNotifiedText">點擊確認「已完成通知」</span>`;
+      }
+      activeCase.isNotificationConfirmed = false;
+      const finishBtn = document.getElementById('btnFinishWorkflow');
+      if (finishBtn) finishBtn.classList.add('hidden');
+    }
+
+    // 結案存檔
+    function completeAndSaveCase() {
+      if (!activeCase.isNotificationConfirmed) {
+        showToast('請先確認「已完成通知」！', 'warn');
+        return;
+      }
+
+      const finishTime = new Date().toLocaleTimeString();
+      activeCase.logs.push(`[${finishTime}] 通報完成，結案存檔`);
+      activeCase.closedTime = finishTime;
+      activeCase.status = '已結案';
+
+      // 存入歷程
+      caseHistory.unshift({ ...activeCase });
+      localStorage.setItem('cad_transfusion_records', JSON.stringify(caseHistory));
+
+      closeWorkflowModal();
+      renderCaseHistory();
+      updateDashboardStats();
+      showToast(`案件 ${activeCase.caseId} 已成功結案存檔！`, 'success');
+    }
+
+    /* ========================================================
+       歷史紀錄管理
+       ======================================================== */
+    function loadStoredCases() {
+      const data = localStorage.getItem('cad_transfusion_records');
+      if (data) {
+        try {
+          caseHistory = JSON.parse(data);
+        } catch (e) {
+          caseHistory = [];
+        }
+      } else {
+        caseHistory = [
+          {
+            caseId: 'CAD-20261104-001',
+            startTime: '10:15:00',
+            closedTime: '10:32:00',
+            dispatcher: '執勤員 01 (席位A)',
+            dispatchUnit: '光明分隊',
+            location: '竹北市光明六路與縣政九路交叉口',
+            hasTP: true,
+            backupTPDispatched: false,
+            backupTPUnit: '',
+            bloodBankHospital: '生醫台大',
+            bloodBankPhone: '03-6691300',
+            pickupSquad: '光明',
+            pickupCarCode: '光明 91',
+            pickupTime: '10:19:30',
+            destHospital: '生醫台大',
+            destHospitalPhone: '03-6691300',
+            isNotificationConfirmed: true,
+            status: '已結案',
+            logs: [
+              '[10:15:00] 啟動輸血派遣流程',
+              '[10:16:10] 現場確認具備 TP 資格人員',
+              '[10:17:30] 通知生醫台大備血',
+              '[10:19:30] 指派光明分隊領血',
+              '[10:25:00] 確認送醫生醫台大',
+              '[10:32:00] 完成雙向通報確認並結案'
+            ]
+          }
+        ];
+        localStorage.setItem('cad_transfusion_records', JSON.stringify(caseHistory));
+      }
+      renderCaseHistory();
+    }
+
+    function renderCaseHistory() {
+      const tbody = document.getElementById('caseHistoryTableBody');
+      tbody.innerHTML = '';
+
+      if (caseHistory.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-slate-500">
+              <i class="fa-solid fa-inbox text-2xl mb-2 block"></i>目前無任何輸血派遣紀錄
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      caseHistory.forEach((c, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition border-b border-slate-800/50';
+
+        const tpBadge = c.hasTP
+          ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">現場有TP</span>`
+          : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-red-500/10 text-red-400 border border-red-500/30">加派: ${c.backupTPUnit || 'TP專車'}</span>`;
+
+        tr.innerHTML = `
+          <td class="px-4 py-3">
+            <div class="font-mono font-bold text-sky-400">${c.caseId}</div>
+            <div class="text-[10px] text-slate-500">${c.startTime} ~ ${c.closedTime || '進行中'}</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="font-semibold text-slate-200">${c.dispatcher || '-'}</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="font-semibold text-slate-200">${c.dispatchUnit}</div>
+            <div class="text-[10px] text-slate-400 max-w-[140px] truncate">${c.location}</div>
+          </td>
+          <td class="px-4 py-3">
+            ${tpBadge}
+          </td>
+          <td class="px-4 py-3">
+            <div class="text-slate-200 font-medium">${c.bloodBankHospital}</div>
+            <div class="text-[10px] text-amber-400">${c.pickupSquad}分隊 領血</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="font-semibold text-purple-300">${c.destHospital}</div>
+            <div class="text-[10px] text-slate-400 font-mono">${c.destHospitalPhone || ''}</div>
+          </td>
+          <td class="px-4 py-3 text-right">
+            <button onclick="viewCaseDetail(${idx})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-sky-300 rounded text-xs transition">
+              <i class="fa-solid fa-eye mr-1"></i>詳情
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateDashboardStats() {
+      document.getElementById('statTodayCount').textContent = caseHistory.length;
+    }
+
+    /* ========================================================
+       案件詳情檢視與複製通報
+       ======================================================== */
+    let currentViewingIndex = null;
+
+    function viewCaseDetail(index) {
+      currentViewingIndex = index;
+      const c = caseHistory[index];
+      const container = document.getElementById('caseDetailContent');
+
+      container.innerHTML = `
+        <div class="grid grid-cols-2 gap-3 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
+          <div><span class="text-slate-500">案件案號：</span><span class="font-mono font-bold text-sky-400">${c.caseId}</span></div>
+          <div><span class="text-slate-500">值班派遣員：</span><span class="text-white font-bold">${c.dispatcher}</span></div>
+          <div><span class="text-slate-500">現場出勤單位：</span><span class="text-white">${c.dispatchUnit}</span></div>
+          <div><span class="text-slate-500">案發地點：</span><span class="text-white">${c.location}</span></div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700 space-y-1">
+            <div class="text-amber-400 font-bold mb-1.5"><i class="fa-solid fa-box-tissue mr-1"></i>領血端通知</div>
+            <div>備血責任醫院：<span class="text-white font-semibold">${c.bloodBankHospital}</span></div>
+            <div>醫院聯絡電話：<span class="text-amber-300 font-mono">${c.bloodBankPhone}</span></div>
+            <div>指定領血分隊：<span class="text-white font-semibold">${c.pickupSquad}分隊</span></div>
+          </div>
+
+          <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700 space-y-1">
+            <div class="text-purple-400 font-bold mb-1.5"><i class="fa-solid fa-hospital mr-1"></i>受血醫院與現場TP</div>
+            <div>受血責任醫院：<span class="text-white font-semibold">${c.destHospital}</span></div>
+            <div>醫院聯絡電話：<span class="text-purple-300 font-mono">${c.destHospitalPhone}</span></div>
+            <div>現場TP狀況：<span class="${c.hasTP ? 'text-emerald-400':'text-red-400'} font-semibold">${c.hasTP ? '現場有TP' : '無TP (加派: '+c.backupTPUnit+')'}</span></div>
+            <div>通報狀態確認：<span class="text-emerald-400 font-bold">已完成通知並結案</span></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-950/80 p-3 rounded-lg border border-slate-800">
+          <div class="text-slate-400 font-bold mb-1"><i class="fa-solid fa-list-timeline mr-1"></i>派遣管制時間歷程</div>
+          <div class="space-y-1 font-mono text-[11px] text-slate-400 max-h-32 overflow-y-auto">
+            ${c.logs.map(log => `<div>${log}</div>`).join('')}
+          </div>
+        </div>
+      `;
+
+      document.getElementById('caseDetailModal').classList.remove('hidden');
+    }
+
+    function closeCaseDetailModal() {
+      document.getElementById('caseDetailModal').classList.add('hidden');
+    }
+
+    function copyDetailText() {
+      if (currentViewingIndex === null) return;
+      const c = caseHistory[currentViewingIndex];
+      const text = `【指揮中心 院前輸血調度結案通報】
+案號：${c.caseId}
+值班派遣員：${c.dispatcher}
+出勤單位：${c.dispatchUnit}
+案發地點：${c.location}
+現場TP：${c.hasTP ? '現場有TP' : '現場無TP (已指派加派: ' + c.backupTPUnit + ')'}
+備血醫院：${c.bloodBankHospital} (電話: ${c.bloodBankPhone})
+領血分隊：${c.pickupSquad}分隊 (${c.pickupCarCode})
+後送責任醫院：${c.destHospital} (電話: ${c.destHospitalPhone})
+通知狀態：已完成通知 (領血端及受血醫院已通報完畢)
+調度時間：${c.startTime} ~ ${c.closedTime}`;
+
+      const tempArea = document.createElement('textarea');
+      tempArea.value = text;
+      document.body.appendChild(tempArea);
+      tempArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempArea);
+
+      showToast('通報文字已複製至剪貼簿！可直接貼至派遣紀錄', 'success');
+    }
+
+    /* ========================================================
+       Toast 提示工具
+       ======================================================== */
+    let toastTimer = null;
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toastMessage');
+      const text = document.getElementById('toastText');
+      const icon = document.getElementById('toastIcon');
+
+      text.textContent = message;
+
+      if (type === 'error') {
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 bg-red-950 border border-red-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-xs';
+        icon.className = 'fa-solid fa-triangle-exclamation text-red-400 text-base';
+      } else if (type === 'warn') {
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 bg-amber-950 border border-amber-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-xs';
+        icon.className = 'fa-solid fa-circle-exclamation text-amber-400 text-base';
+      } else if (type === 'success') {
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 bg-emerald-950 border border-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-xs';
+        icon.className = 'fa-solid fa-circle-check text-emerald-400 text-base';
+      } else {
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-xs';
+        icon.className = 'fa-solid fa-info-circle text-sky-400 text-base';
+      }
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-xs';
+      }, 3500);
+    }
+  </script>
+</body>
+</html>
