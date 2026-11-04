@@ -375,7 +375,13 @@
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-2">點選責任醫院（單選）<span class="text-red-400 font-bold">*</span></label>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-xs font-semibold text-slate-300">點選責任醫院（單選）<span class="text-red-400 font-bold">*</span></label>
+                <div id="step2DistanceSortBadge" class="text-[11px] text-emerald-400 font-medium flex items-center space-x-1">
+                  <i class="fa-solid fa-arrow-down-short-wide"></i>
+                  <span>已依事發地點由近至遠排序</span>
+                </div>
+              </div>
               <!-- 8家責任醫院卡片網格 -->
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="bloodBankHospitalGrid">
                 <!-- 動態注入八家醫院 -->
@@ -423,7 +429,13 @@
             </div>
 
             <div>
-              <label class="block text-xs font-semibold text-slate-300 mb-2">點選受血醫院（單選）<span class="text-red-400 font-bold">*</span></label>
+              <div class="flex items-center justify-between mb-2">
+                <label class="block text-xs font-semibold text-slate-300">點選受血醫院（單選）<span class="text-red-400 font-bold">*</span></label>
+                <div id="step4DistanceSortBadge" class="text-[11px] text-purple-400 font-medium flex items-center space-x-1">
+                  <i class="fa-solid fa-arrow-down-short-wide"></i>
+                  <span>已依事發地點由近至遠排序</span>
+                </div>
+              </div>
               <!-- 8家送醫醫院卡片網格 -->
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" id="destHospitalGrid">
                 <!-- 動態注入八家醫院 -->
@@ -627,17 +639,108 @@
     /* ========================================================
        資料設定與常數定義
        ======================================================== */
-    // 八家責任醫院清單
+    // 八家責任醫院清單 (含精確地理座標，用於依事發地點計算距離排序)
     const HOSPITALS = [
-      { id: 'h1', name: '竹北東元', defaultPhone: '03-5527000' },
-      { id: 'h2', name: '中醫大', defaultPhone: '03-5580558' },
-      { id: 'h3', name: '湖口仁慈', defaultPhone: '03-5993500' },
-      { id: 'h4', name: '新竹馬偕', defaultPhone: '03-6119595' },
-      { id: 'h5', name: '生醫台大', defaultPhone: '03-6691300' },
-      { id: 'h6', name: '新竹台大', defaultPhone: '03-5326151' },
-      { id: 'h7', name: '竹東台大', defaultPhone: '03-5943248' },
-      { id: 'h8', name: '竹東榮民', defaultPhone: '03-5962134' }
+      { id: 'h1', name: '竹北東元', defaultPhone: '03-5527000', lat: 24.8258, lng: 121.0142 },
+      { id: 'h2', name: '中醫大', defaultPhone: '03-5580558', lat: 24.8213, lng: 121.0202 },
+      { id: 'h3', name: '湖口仁慈', defaultPhone: '03-5993500', lat: 24.9042, lng: 121.0428 },
+      { id: 'h4', name: '新竹馬偕', defaultPhone: '03-6119595', lat: 24.7997, lng: 120.9959 },
+      { id: 'h5', name: '生醫台大', defaultPhone: '03-6691300', lat: 24.8083, lng: 121.0438 },
+      { id: 'h6', name: '新竹台大', defaultPhone: '03-5326151', lat: 24.8142, lng: 120.9798 },
+      { id: 'h7', name: '竹東台大', defaultPhone: '03-5943248', lat: 24.7397, lng: 121.0883 },
+      { id: 'h8', name: '竹東榮民', defaultPhone: '03-5962134', lat: 24.7344, lng: 121.0969 }
     ];
+
+    // 新竹縣主要鄉鎮市區與關鍵路段座標對照表
+    const LOCATION_COORDINATES = [
+      { keywords: ['竹北', '光明', '高鐵', '喜來登', '縣政', '文興'], lat: 24.8258, lng: 121.0142 },
+      { keywords: ['湖口', '成功路', '仁德', '山崎', '工業區'], lat: 24.9042, lng: 121.0428 },
+      { keywords: ['新豐', '明新', '松柏嶺', '鳳坑'], lat: 24.8995, lng: 120.9856 },
+      { keywords: ['竹東', '長春路', '中正路', '自強', '下公館'], lat: 24.7397, lng: 121.0883 },
+      { keywords: ['二重', '二重埔', '中興路', '工研院'], lat: 24.7675, lng: 121.0560 },
+      { keywords: ['芎林', '富林路', '文山路'], lat: 24.7744, lng: 121.0811 },
+      { keywords: ['橫山', '九讚頭', '內灣', '中豐路'], lat: 24.7176, lng: 121.1396 },
+      { keywords: ['尖石', '嘉樂', '錦屏', '秀巒', '宇老'], lat: 24.7065, lng: 121.2037 },
+      { keywords: ['新埔', '義民廟', '照門'], lat: 24.8277, lng: 121.0734 },
+      { keywords: ['關西', '正義路', '六福村', '石光'], lat: 24.7946, lng: 121.1764 },
+      { keywords: ['寶山', '雙溪', '科學園區', '寶山水庫'], lat: 24.7614, lng: 120.9877 },
+      { keywords: ['北埔', '北埔老街', '南埔'], lat: 24.6998, lng: 121.0577 },
+      { keywords: ['峨眉', '富興', '峨眉湖'], lat: 24.6865, lng: 121.0163 },
+      { keywords: ['五峰', '大隘', '清泉', '觀霧'], lat: 24.6300, lng: 121.1200 },
+      { keywords: ['台68', '68快速', '東西向'], lat: 24.7800, lng: 121.0300 },
+      { keywords: ['新竹市', '光復路', '經國路', '清大', '交大'], lat: 24.8050, lng: 120.9850 }
+    ];
+
+    // 出勤分隊預設座標基準
+    const SQUAD_COORDINATES = {
+      '光明分隊': { lat: 24.8285, lng: 121.0125 },
+      '竹東分隊': { lat: 24.7389, lng: 121.0921 },
+      '湖口分隊': { lat: 24.9015, lng: 121.0455 },
+      '二重分隊': { lat: 24.7675, lng: 121.0560 },
+      '芎林分隊': { lat: 24.7744, lng: 121.0811 },
+      '橫山分隊': { lat: 24.7176, lng: 121.1396 },
+      '尖石分隊': { lat: 24.7065, lng: 121.2037 },
+      '其他轄區分隊': { lat: 24.8258, lng: 121.0142 }
+    };
+
+    // 計算經緯度直線距離（公里）
+    function calculateDistanceKm(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.round(R * c * 10) / 10;
+    }
+
+    // 解析案發地點座標基準
+    function resolveIncidentCoordinates() {
+      const loc = (activeCase.location || '').trim();
+      const unit = (activeCase.dispatchUnit || '').trim();
+
+      // 1. 優先從輸入地點比對
+      if (loc) {
+        // 台68線快速道路分析里程數
+        if (loc.includes('68')) {
+          const matchK = loc.match(/(\d+)\s*[kK公里]/);
+          if (matchK) {
+            const k = parseFloat(matchK[1]);
+            const approxLng = 120.92 + (k / 23) * 0.17;
+            const approxLat = 24.82 - (k / 23) * 0.08;
+            return { lat: approxLat, lng: approxLng, source: `台68線 ${k}K` };
+          }
+        }
+        for (const item of LOCATION_COORDINATES) {
+          for (const kw of item.keywords) {
+            if (loc.includes(kw)) {
+              return { lat: item.lat, lng: item.lng, source: kw };
+            }
+          }
+        }
+      }
+
+      // 2. 次依出勤分隊座標
+      if (unit && SQUAD_COORDINATES[unit]) {
+        return { ...SQUAD_COORDINATES[unit], source: unit };
+      }
+
+      // 3. 預設以竹北市中心為基準
+      return { lat: 24.8258, lng: 121.0142, source: '竹北' };
+    }
+
+    // 取得由近至遠排序的醫院清單
+    function getSortedHospitals() {
+      const refCoord = resolveIncidentCoordinates();
+      const list = HOSPITALS.map(h => {
+        const dist = calculateDistanceKm(refCoord.lat, refCoord.lng, h.lat, h.lng);
+        return { ...h, distance: dist };
+      });
+      list.sort((a, b) => a.distance - b.distance);
+      return { sorted: list, refSource: refCoord.source };
+    }
 
     // 七個領血分隊清單
     const PICKUP_SQUADS = [
@@ -1041,28 +1144,54 @@ ${JSON.stringify(c, null, 2)}
     }
 
     /* ========================================================
-       渲染醫院卡片（含即時可編輯電話欄）
+       渲染醫院卡片（依事發地點由近至遠排序，由左至右呈現）
        ======================================================== */
     function renderHospitalGrids() {
       const bloodGrid = document.getElementById('bloodBankHospitalGrid');
       const destGrid = document.getElementById('destHospitalGrid');
+      if (!bloodGrid || !destGrid) return;
       bloodGrid.innerHTML = '';
       destGrid.innerHTML = '';
 
-      HOSPITALS.forEach(h => {
+      const { sorted, refSource } = getSortedHospitals();
+
+      // 更新排序依據標籤文字
+      const locText = (activeCase.location || activeCase.dispatchUnit || '').trim();
+      const sortDesc = locText ? `已依「${refSource}」由近至遠排序` : '已由近至遠排序';
+      
+      const badge2 = document.getElementById('step2DistanceSortBadge');
+      if (badge2) badge2.innerHTML = `<i class="fa-solid fa-arrow-down-short-wide"></i> <span>${sortDesc}</span>`;
+      const badge4 = document.getElementById('step4DistanceSortBadge');
+      if (badge4) badge4.innerHTML = `<i class="fa-solid fa-arrow-down-short-wide"></i> <span>${sortDesc}</span>`;
+
+      sorted.forEach((h, index) => {
         const currentPhone = hospitalPhoneMap[h.name] || h.defaultPhone;
+        const isClosest = (index === 0);
 
         // 1. 步驟 2：備血責任醫院卡片
+        const isBloodSelected = (activeCase.bloodBankHospital === h.name);
         const bloodCard = document.createElement('div');
         bloodCard.id = `card-blood-${h.name}`;
-        bloodCard.className = 'hospital-card p-3 rounded-xl border border-slate-700 bg-slate-900/80 transition flex flex-col justify-between hover:border-red-500/80';
+        bloodCard.className = `hospital-card p-3 rounded-xl border transition flex flex-col justify-between ${
+          isBloodSelected 
+            ? 'border-red-500 bg-red-950/40 ring-2 ring-red-500/50' 
+            : 'border-slate-700 bg-slate-900/80 hover:border-red-500/80'
+        }`;
         bloodCard.innerHTML = `
           <div onclick="selectBloodBankHospital('${h.name}')" class="cursor-pointer flex items-center justify-between pb-2 border-b border-slate-800">
-            <span class="font-bold text-sm text-white">${h.name}</span>
-            <span class="blood-check-badge text-slate-600 text-xs"><i class="fa-regular fa-circle-check"></i> 點選</span>
+            <div class="flex items-center space-x-1.5">
+              <span class="font-bold text-sm text-white">${h.name}</span>
+              ${isClosest ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">🏆 最近</span>` : ''}
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-[11px] font-mono ${isClosest ? 'text-emerald-400 font-bold' : 'text-slate-400'}">${h.distance !== undefined ? `${h.distance} km` : ''}</span>
+              <span class="blood-check-badge text-xs ${isBloodSelected ? 'text-red-400 font-bold' : 'text-slate-600'}">
+                <i class="fa-${isBloodSelected ? 'solid' : 'regular'} fa-circle-check"></i> ${isBloodSelected ? '已選取' : '點選'}
+              </span>
+            </div>
           </div>
           <div class="mt-2.5">
-            <label class="block text-[11px] text-slate-400 mb-1">聯絡電話 (可編輯並自動儲存)：</label>
+            <label class="block text-[11px] text-slate-400 mb-1">血庫電話 (可編輯並自動儲存)：</label>
             <div class="flex items-center space-x-1.5">
               <input type="text" data-hospital="${h.name}" value="${currentPhone}" onchange="saveHospitalPhone('${h.name}', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-sky-300 font-mono focus:outline-none focus:border-sky-500">
               <button type="button" onclick="saveHospitalPhone('${h.name}', this.previousElementSibling.value)" title="儲存電話" class="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-xs">
@@ -1074,13 +1203,26 @@ ${JSON.stringify(c, null, 2)}
         bloodGrid.appendChild(bloodCard);
 
         // 2. 步驟 4：送醫責任醫院卡片
+        const isDestSelected = (activeCase.destHospital === h.name);
         const destCard = document.createElement('div');
         destCard.id = `card-dest-${h.name}`;
-        destCard.className = 'dest-card p-3 rounded-xl border border-slate-700 bg-slate-900/80 transition flex flex-col justify-between hover:border-purple-500/80';
+        destCard.className = `dest-card p-3 rounded-xl border transition flex flex-col justify-between ${
+          isDestSelected 
+            ? 'border-purple-500 bg-purple-950/40 ring-2 ring-purple-500/50' 
+            : 'border-slate-700 bg-slate-900/80 hover:border-purple-500/80'
+        }`;
         destCard.innerHTML = `
           <div onclick="selectDestHospital('${h.name}')" class="cursor-pointer flex items-center justify-between pb-2 border-b border-slate-800">
-            <span class="font-bold text-sm text-white">${h.name}</span>
-            <span class="dest-check-badge text-slate-600 text-xs"><i class="fa-regular fa-circle-check"></i> 點選</span>
+            <div class="flex items-center space-x-1.5">
+              <span class="font-bold text-sm text-white">${h.name}</span>
+              ${isClosest ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold">🏆 最近</span>` : ''}
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="text-[11px] font-mono ${isClosest ? 'text-purple-400 font-bold' : 'text-slate-400'}">${h.distance !== undefined ? `${h.distance} km` : ''}</span>
+              <span class="dest-check-badge text-xs ${isDestSelected ? 'text-purple-400 font-bold' : 'text-slate-600'}">
+                <i class="fa-${isDestSelected ? 'solid' : 'regular'} fa-circle-check"></i> ${isDestSelected ? '已選取' : '點選'}
+              </span>
+            </div>
           </div>
           <div class="mt-2.5">
             <label class="block text-[11px] text-slate-400 mb-1">急診電話 (可編輯並自動儲存)：</label>
@@ -1204,6 +1346,10 @@ ${JSON.stringify(c, null, 2)}
       const btnNext = document.getElementById('btnNextStep');
       const btnFinish = document.getElementById('btnFinishWorkflow');
 
+      if (stepNumber === 2 || stepNumber === 4) {
+        renderHospitalGrids();
+      }
+
       if (stepNumber === TOTAL_STEPS) {
         btnNext.classList.add('hidden');
         // 步驟5結案存檔按鈕預設隱藏，按「已完成通知」後才顯示
@@ -1264,6 +1410,7 @@ ${JSON.stringify(c, null, 2)}
         activeCase.dispatcher = dispatcher;
         activeCase.dispatchUnit = unit;
         activeCase.location = loc;
+        renderHospitalGrids(); // 即時依案發地點重新排序醫院
         activeCase.logs.push(`[${new Date().toLocaleTimeString()}] 派遣員：${dispatcher}，出勤單位：${unit}，地點：${loc}`);
         return true;
       }
